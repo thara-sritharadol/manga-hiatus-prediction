@@ -33,6 +33,10 @@ type PhoenixManga struct {
 	VolRaw      string    `gorm:"type:varchar(50)" json:"vol_raw"`
 	HasPremium  int       `gorm:"type:int" json:"has_premium"`
 	PremiumType string    `gorm:"type:varchar(100)" json:"premium_type"`
+	MediaType      string     `gorm:"type:varchar(50);default:'Manga'" json:"media_type"`
+	Price          float64    `gorm:"type:decimal(10,2)" json:"price"`
+	Authors        []string   `gorm:"type:jsonb;serializer:json" json:"authors"`
+	Genres         []string   `gorm:"type:jsonb;serializer:json" json:"genres"`
 	JPTotalVols int       `gorm:"type:int;default:0" json:"jp_total_vols"`
 	JikanStatus string    `gorm:"type:varchar(50);default:'PENDING'" json:"jikan_status"`
 	THReleaseDate  *time.Time `gorm:"type:date" json:"th_release_date"`

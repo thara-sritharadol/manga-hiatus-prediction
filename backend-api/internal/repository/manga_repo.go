@@ -22,7 +22,9 @@ func (r *MangaRepository) Upsert(manga *domain.PhoenixManga) error {
 		Columns: []clause.Column{{Name: "url"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"title_th", "title_en", "vol_th", "vol_raw", 
-			"has_premium", "premium_type", "th_release_date", "updated_at",
+			"has_premium", "premium_type", "media_type","price",
+			"authors", "genres", 
+			"th_release_date", "updated_at",
 			"jp_total_vols", "jikan_status",
 			
 		}),
