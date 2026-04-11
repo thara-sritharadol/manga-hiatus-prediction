@@ -41,13 +41,19 @@ def extract_romaji_title(html_text):
         return clean_title.strip()
     return "ไม่พบข้อมูลภาษาอังกฤษ"
 
-def clean_title(raw_text):
-    clean_name = re.sub(r'^\(มังงะ\) |^\(LN\) |^\(ไลท์โนเวล\) ', '', raw_text)
+def process_title(raw_text):
+    media_type = "Manga"
+    if re.search(r'^\(LN\)', raw_text, re.IGNORECASE):
+        media_type = "Light Novel"
+    elif re.search(r'^\(มังงะ\)', raw_text, re.IGNORECASE):
+        media_type = "Manga"
+    
+    clean_name = re.sub(r'^\(มังงะ\) |^\(LN\) ', '', raw_text)
     pattern = r"|".join(map(re.escape, PREMIUM_KEYWORDS))
     clean_name = re.sub(pattern, "", clean_name, flags=re.IGNORECASE)
     clean_name = re.sub(r"\s+", " ", clean_name).strip()
 
-    return clean_name
+    return clean_name, media_type
 
 def match_tile_vol(clean_name):
 
@@ -109,18 +115,52 @@ def find_th_release_date(detail_soup):
 
     return th_release_date
 
-def process_description(description):
+def find_price(detail_soup):
+    th_price = 0.0
+    old_price_div = detail_soup.find('div', class_=re.compile(r'old-price'))
+
+    if old_price_div:
+        price_span = old_price_div.find('span', class_='price')
+        if price_span:
+            raw_price_text = price_span.get_text(strip=True) # จะได้ข้อความเช่น "฿175.00"
+            
+            # ใช้ Regex ทำความสะอาด: เก็บไว้เฉพาะ "ตัวเลข" และ "จุดทศนิยม"
+            # จะตัดตัวอักษร ฿ หรือลูกน้ำ (,) ออกให้หมด
+            clean_price_str = re.sub(r'[^\d.]', '', raw_price_text)
+            
+            try:
+                th_price = float(clean_price_str)
+                print(f"   [Log] เจอราคาเต็ม (ดึงจากป้ายลดราคา): {th_price}")
+            except ValueError:
+                pass
+
+    if th_price == 0.0:
+        price_meta = detail_soup.find('meta', itemprop='price')
+    
+        if price_meta and price_meta.has_attr('content'):
+            try:
+                th_price = float(price_meta['content'])
+                print(f"   [Log] เจอราคาเต็ม (ดึงจาก Meta Tag): {th_price}")
+            except ValueError:
+                pass
+
+    if th_price == 0.0:
+        print("   [Log] ⚠️ หาข้อมูลราคาไม่เจอเลย")
+
+    return th_price
+
+def process_description(detail_soup):
     en_title = "ไม่พบข้อมูลภาษาอังกฤษ"
     has_premium = 0
     premium_type = "None"
 
+    description = detail_soup.find('div', class_='prose')
+
     if description:
         raw_html = str(description)
-        # ล้าง Tag ออกเพื่อให้เหลือ Text สำหรับเช็ค Keyword และหา en_title
         desc_text = re.sub(r'<[^>]+>', ' ', raw_html)
         desc_text = re.sub(r'\s+', ' ', desc_text).strip()
                 
-        # [New Logic] ตรวจจับ Premium จากข้อความรายละเอียด
         for kw in PREMIUM_KEYWORDS:
             if kw.lower() in desc_text.lower():
                 has_premium = 1
@@ -130,6 +170,7 @@ def process_description(description):
         en_title = extract_romaji_title(desc_text)
 
     return en_title, has_premium, premium_type
+
 
 # ==========================================
 # Crawling
@@ -152,8 +193,8 @@ while page <= max_pages:
         try:
             raw_title = a_tag.text.strip()
             detail_url = a_tag['href']
-            clean_name = clean_title(raw_title)
-            th_title, th_vol, raw_vol = match_tile_vol(clean_name)
+            clean_name, type_media = process_title(raw_title)
+            th_title, th_vol, raw_vol= match_tile_vol(clean_name)
 
 
             print(f"กำลังเจาะเข้าหน้า: {th_title} เล่ม {th_vol}...")
@@ -161,11 +202,14 @@ while page <= max_pages:
             detail_soup = BeautifulSoup(detail_res.text, 'lxml')
 
             release_date_th = find_th_release_date(detail_soup)
-            print(f"   [Log] วันที่วางจำหน่าย: {release_date_th}")
+            print(f"   [Log] Release Date: {release_date_th}")
+            
 
-            description = detail_soup.find('div', class_='prose')
+            #price_meta = detail_soup.find('meta', itemprop='price')
+            th_price = find_price(detail_soup)
 
-            en_title, has_premium, premium_type = process_description(description)
+            #description = detail_soup.find('div', class_='prose')
+            en_title, has_premium, premium_type = process_description(detail_soup)
 
             all_manga_data.append({
                 "title_th": th_title,
@@ -174,6 +218,8 @@ while page <= max_pages:
                 "title_en": en_title,
                 "has_premium": has_premium,
                 "premium_type": premium_type,
+                "media_type" : type_media,
+                "price": th_price,
                 "url": detail_url, 
                 "th_release_date": release_date_th
             })
@@ -186,7 +232,9 @@ while page <= max_pages:
                 "vol_raw": raw_vol,
                 "has_premium": has_premium,
                 "premium_type": premium_type,
-                "th_release_date": release_date_th
+                "media_type" : type_media,
+                "price": th_price,
+                "th_release_date": release_date_th,
             }
 
             api_endpoint = "http://localhost:8080/api/manga"
