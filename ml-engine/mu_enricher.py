@@ -2,11 +2,12 @@ import requests
 import time
 import re
 
+# รับไม้ต่อจาก AniList (เรื่องที่หาจำนวนเล่มไม่เจอ)
 API_GET_PENDING = "http://localhost:8080/api/manga/pending?status=PENDING_MU"
 API_UPSERT = "http://localhost:8080/api/manga"
 
 def enrich_with_mangaupdates():
-    print("Retrieving a list of manga...")
+    print("🔍 Retrieving a list of manga from PENDING_MU...")
     
     try:
         res = requests.get(API_GET_PENDING)
@@ -17,10 +18,10 @@ def enrich_with_mangaupdates():
         pending_mangas = res.json().get("data", [])
         
         if not pending_mangas:
-            print("Up-to-Date")
+            print("Up-to-Date (No PENDING_MU manga)")
             return
         
-        print(f"Found a manga to search for on the Japanese side: {len(pending_mangas)} series")
+        print(f"Found manga to search in MU (Final Step): {len(pending_mangas)} series")
 
         for manga in pending_mangas:
             title_en = manga["title_en"]
@@ -43,40 +44,34 @@ def enrich_with_mangaupdates():
                     if detail_res.status_code == 200:
                         detail_data = detail_res.json()
                         
-                        # MU usually use "5 Volumes (Complete)" or "Ongoing"
                         mu_status_text = detail_data.get("status", "")
                         
                         vol_match = re.search(r'(\d+)\s+Volumes?', mu_status_text, re.IGNORECASE)
                         vols_count = int(vol_match.group(1)) if vol_match else 0
                         
+                        """
                         if "Complete" in mu_status_text:
                             manga["jikan_status"] = "FINISHED"
-                            manga["jp_total_vols"] = vols_count
                         elif "Ongoing" in mu_status_text:
                             manga["jikan_status"] = "ONGOING"
-                            manga["jp_total_vols"] = vols_count
                         elif "Hiatus" in mu_status_text:
                             manga["jikan_status"] = "HIATUS"
-                            manga["jp_total_vols"] = vols_count
                         else:
-
-                            if vols_count == 0:
-                                manga["jikan_status"] = "PENDING_JIKAN"
-                            else:
-                                manga["jikan_status"] = "UNKNOWN"
-                                manga["jp_total_vols"] = vols_count
+                            manga["jikan_status"] = "UNKNOWN"
+                        """
+                        manga["jp_total_vols"] = vols_count
 
                         if vols_count > 0:
                             print(f"   -> MU Found! Volumes: {vols_count} | Raw Data: {mu_status_text}")
                         else:
-                            print(f"   -> MU Found with No Volumes (PENDING_JIKAN)")
+                            print(f"   -> MU Found but NO Volumes. (End of Pipeline)")
                             
                 else:
-                    print("   -> MU Not Found (PENDING_JIKAN)")
-                    manga["jikan_status"] = "PENDING_JIKAN"
+                    print("   -> MU Not Found. Marking as NOT_FOUND")
+                    manga["jikan_status"] = "NOT_FOUND"
 
             elif mu_res.status_code == 429:
-                print("MU Rate Limit!...")
+                print("MU Rate Limit! Sleeping for 5s...")
                 time.sleep(5)
                 continue 
 
@@ -84,9 +79,9 @@ def enrich_with_mangaupdates():
             if update_res.status_code == 201:
                 print(f"   Save Successfully")
             else:
-                print(f"   Save Failed")
+                print(f"   Save Failed: {update_res.text}")
 
-            time.sleep(2) #
+            time.sleep(2)
 
     except Exception as e:
         print(f"Error: {e}")

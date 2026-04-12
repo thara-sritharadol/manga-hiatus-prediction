@@ -56,6 +56,7 @@ func main() {
 	app := fiber.New()
 	app.Post("/api/manga", mangaHandler.HandleUpsert)
 	app.Get("/api/manga/pending", mangaHandler.HandleGetPending)
+	app.Post("/api/manga/impute-titles", mangaHandler.ImputeTitles)
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("Go API Server is running!")

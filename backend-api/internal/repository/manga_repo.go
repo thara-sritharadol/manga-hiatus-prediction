@@ -40,3 +40,21 @@ func (r *MangaRepository) GetPendingByStatus(status string) ([]domain.PhoenixMan
 	
 	return mangas, result.Error
 }
+
+// ImputeEnglishTitles ทำหน้าที่ซ่อมแซมชื่อภาษาอังกฤษที่ขาดหายไป
+func (r *MangaRepository) ImputeEnglishTitles() (int64, error) {
+	query := `
+		UPDATE phoenix_mangas AS t1
+		SET title_en = t2.title_en
+		FROM phoenix_mangas AS t2
+		WHERE t1.title_th = t2.title_th
+		  AND t1.title_en IN ('ไม่พบข้อมูลภาษาอังกฤษ', 'ไม่พบวงเล็บ', '')
+		  AND t2.title_en NOT IN ('ไม่พบข้อมูลภาษาอังกฤษ', 'ไม่พบวงเล็บ', '')
+	`
+	
+	// ใช้ Exec ของ GORM เพื่อรัน Raw SQL
+	result := r.DB.Exec(query)
+	
+	// ส่งกลับจำนวนแถวที่ถูกอัปเดต และ Error (ถ้ามี)
+	return result.RowsAffected, result.Error
+}

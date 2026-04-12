@@ -52,3 +52,22 @@ func (h *MangaHandler) HandleGetPending(c *fiber.Ctx) error {
 		"data":    mangas,
 	})
 }
+
+func (h *MangaHandler) ImputeTitles(c *fiber.Ctx) error {
+	// เรียกใช้ฟังก์ชันจาก Repository (เหมือนเดิม)
+	rowsAffected, err := h.Repo.ImputeEnglishTitles()
+	
+	if err != nil {
+		// ส่ง HTTP 500 กลับไปพร้อมรายละเอียด
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to impute titles",
+			"details": err.Error(),
+		})
+	}
+
+	// ส่ง HTTP 200 (OK) กลับไปเมื่อทำงานสำเร็จ
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message":      "Title imputation successful",
+		"updated_rows": rowsAffected,
+	})
+}

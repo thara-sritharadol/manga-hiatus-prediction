@@ -1,7 +1,7 @@
 import requests
 import time
 
-API_GET_PENDING = "http://localhost:8080/api/manga/pending?status=PENDING_JIKAN"
+API_GET_PENDING = "http://localhost:8080/api/manga/pending?status=PENDING"
 API_UPSERT = "http://localhost:8080/api/manga"
 
 def enrich_with_jikan():
@@ -36,25 +36,37 @@ def enrich_with_jikan():
                     status = first_result.get("status")
                     volumes = first_result.get("volumes")
                     
-                    vols_count = volumes if volumes is not None else 0
+                    genre_list = [g['name'] for g in first_result.get("genres", [])]
+                    author_list = [a['name'] for a in first_result.get("authors", [])]
+                    
+                    manga["genres"] = genre_list
+                    manga["authors"] = author_list
 
-                    if status == "Finished":
-                        manga["jikan_status"] = "FINISHED"
-                        manga["jp_total_vols"] = vols_count
-                    elif status == "Publishing":
-                        manga["jikan_status"] = "ONGOING"
-                        manga["jp_total_vols"] = vols_count
-                    else:
-                        manga["jikan_status"] = "UNKNOWN"
+                    vols_count = volumes if volumes is not None else 0
+                    manga["jp_total_vols"] = vols_count
+
+                    if vols_count > 0:
+                        if status == "Finished":
+                            manga["jikan_status"] = "FINISHED"
+                        elif status == "Publishing":
+                            manga["jikan_status"] = "ONGOING"
+                        else:
+                            manga["jikan_status"] = "UNKNOWN"
                         
-                    print(f"   -> Jikan Found! Status: {status} | Volumes: {volumes}")
+                        print(f"   -> Jikan Found! Status: {status} | Volumes: {vols_count} | Genres: {genre_list}")
+                    else:
+                        manga["jikan_status"] = "PENDING_MU" 
+                        print(f"   -> Jikan Found metadata but NO volumes. Passing to AniList (PENDING_MU)")
+
                 else:
-                    print("   -> Jikan Not Found")
-                    manga["jikan_status"] = "NOT_FOUND"
+                    print("   -> Jikan Not Found. Passing to AniList (PENDING_MU)")
+                    manga["jikan_status"] = "PENDING_MU"
+                    manga["genres"] = []
+                    manga["authors"] = []
 
             elif jikan_res.status_code == 429:
-                print("Jikan Rate Limit!...")
-                time.sleep(10)
+                print("Jikan Rate Limit! Sleeping for 5s...")
+                time.sleep(5)
                 continue 
             else:
                 manga["jikan_status"] = "API_ERROR"
@@ -65,7 +77,7 @@ def enrich_with_jikan():
             else:
                 print(f"   Save Failed: {update_res.text}")
 
-            time.sleep(1.5)
+            time.sleep(2)
 
     except Exception as e:
         print(f"Error: {e}")

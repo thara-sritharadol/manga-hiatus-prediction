@@ -1,7 +1,7 @@
 import requests
 import time
 
-API_GET_PENDING = "http://localhost:8080/api/manga/pending"
+API_GET_PENDING = "http://localhost:8080/api/manga/pending?status=PENDING_AL"
 API_UPSERT = "http://localhost:8080/api/manga"
 
 # URL for AniList GraphQL
@@ -26,7 +26,7 @@ query ($query: String) {
 '''
 
 def enrich_with_anilist():
-    print("Retrieving a list of manga...")
+    print("Retrieving a list of manga from PENDING_AL...")
     
     try:
         res = requests.get(API_GET_PENDING)
@@ -37,14 +37,14 @@ def enrich_with_anilist():
         pending_mangas = res.json().get("data", [])
         
         if not pending_mangas:
-            print("Up-to-date")
+            print("Up-to-date (No PENDING_AL manga)")
             return
         
-        print(f"Found a manga to search for on the Japanese side: {len(pending_mangas)} series")
+        print(f"Found manga to search in AniList: {len(pending_mangas)} series")
 
         for manga in pending_mangas:
             title_en = manga["title_en"]
-            print(f"\nกำลังค้นหาใน AniList: {title_en}...")
+            print(f"\nSearching in AniList: {title_en}...")
 
             # Payload for GraphQL
             variables = {
@@ -54,6 +54,7 @@ def enrich_with_anilist():
             anilist_res = requests.post(ANILIST_URL, json={'query': graphql_query, 'variables': variables})
 
             if anilist_res.status_code == 200:
+                # GraphQL มักจะตอบกลับเป็น 200 เสมอ แม้จะหาไม่เจอ แต่จะให้ result_data เป็น None
                 result_data = anilist_res.json().get('data', {}).get('Media')
 
                 if result_data:
@@ -63,6 +64,7 @@ def enrich_with_anilist():
                     vols_count = volumes if volumes is not None else 0
 
                     if vols_count > 0:
+                        """
                         if ani_status == "FINISHED":
                             manga["jikan_status"] = "FINISHED"
                         elif ani_status == "RELEASING":
@@ -71,50 +73,42 @@ def enrich_with_anilist():
                             manga["jikan_status"] = ani_status
                         else:
                             manga["jikan_status"] = "UNKNOWN"
-                            
+                        """
                         manga["jp_total_vols"] = vols_count
                         print(f"   -> Complete! Status: {ani_status} | Volumes: {vols_count}")
 
                     else:
-                        # (vols_count == 0)
+                        # (vols_count == 0) โยนไม้ต่อให้ MangaUpdates
                         manga["jikan_status"] = "PENDING_MU" 
                         manga["jp_total_vols"] = 0
-                        print(f"   -> Title With No Volumn (PENDING_MU)")
+                        print(f"   -> Title With No Volume. Passing to MangaUpdates (PENDING_MU)")
 
                 else:
                     manga["jikan_status"] = "PENDING_MU" 
                     manga["jp_total_vols"] = 0
-                    print("   -> Not Found (PENDING_MU)")
+                    print("   -> Not Found in AniList. Passing to MangaUpdates (PENDING_MU)")
+            
+            elif anilist_res.status_code == 404:
+                print("   -> Not Found in AniList (404). Passing to MU")
+                manga["jikan_status"] = "PENDING_MU"
+                manga["jp_total_vols"] = 0
 
             elif anilist_res.status_code == 429:
-                print("AniList Rate Limit...")
+                print("AniList Rate Limit! Sleeping for 10s...")
                 time.sleep(10)
                 continue
-
-            elif anilist_res.status_code == 404:
-                print("Not Found")
-                manga["jikan_status"] = "PENDING_MU" 
-                manga["jp_total_vols"] = 0
-                print("   -> Not Found (PENDING_MU)")
-
-                update_res = requests.post(API_UPSERT, json=manga)
-                if update_res.status_code == 201:
-                    print(f"   Save Successfully")
-                else:
-                    print(f"   Save Successfully: {update_res.text}")
-
             else:
-                print(f"   -> API Error: {anilist_res.status_code}")
-                continue
-            
-            print(f"   [Debug] Data: {manga}")
+                print(f"   -> API Error: {anilist_res.status_code}. Passing to MU")
+                manga["jikan_status"] = "PENDING_MU"
+
+            # 🌟 รวบคำสั่งอัปเดต DB ไว้ที่เดียว เพื่อป้องกันการเซฟซ้ำซ้อน
             update_res = requests.post(API_UPSERT, json=manga)
             if update_res.status_code == 201:
                 print(f"   Save Successfully")
             else:
                 print(f"   Save Failed: {update_res.text}")
 
-            time.sleep(2.5)
+            time.sleep(2)
 
     except Exception as e:
         print(f"Error: {e}")
