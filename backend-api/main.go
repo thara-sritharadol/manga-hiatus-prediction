@@ -59,6 +59,7 @@ func main() {
 	app.Post("/api/manga", mangaHandler.HandleUpsert)
 	app.Get("/api/manga/pending", mangaHandler.HandleGetPending)
 	app.Post("/api/manga/impute-titles", mangaHandler.ImputeTitles)
+	app.Post("api/manga/generate-features", mangaHandler.GenerateFeatures)
 
 
 	app.Get("/", func(c *fiber.Ctx) error {

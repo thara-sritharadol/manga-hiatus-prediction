@@ -71,3 +71,18 @@ func (h *MangaHandler) ImputeTitles(c *fiber.Ctx) error {
 		"updated_rows": rowsAffected,
 	})
 }
+
+func (h *MangaHandler) GenerateFeatures(c *fiber.Ctx) error {
+	// Call repository to generate ML features
+	if err := h.Repo.GenerateMLFeatures(); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to generate ML features",
+			"details": err.Error(),
+		})
+	}
+
+	// Return success response
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "ML features generated successfully",
+	})
+}
