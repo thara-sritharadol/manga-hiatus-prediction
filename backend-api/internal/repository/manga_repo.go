@@ -21,7 +21,7 @@ func (r *MangaRepository) Upsert(manga *domain.PhoenixManga) error {
 	result := r.DB.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "url"}},
 		DoUpdates: clause.AssignmentColumns([]string{
-			"title_th", "title_en", "vol_th", "vol_raw", 
+			"title_th", "title_jp", "title_en", "vol_th", "vol_raw", 
 			"has_premium", "premium_type", "media_type","price",
 			"authors", "genres", 
 			"th_release_date", "updated_at",

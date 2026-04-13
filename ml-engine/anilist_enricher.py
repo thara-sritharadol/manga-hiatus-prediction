@@ -43,12 +43,12 @@ def enrich_with_anilist():
         print(f"Found manga to search in AniList: {len(pending_mangas)} series")
 
         for manga in pending_mangas:
-            title_en = manga["title_en"]
-            print(f"\nSearching in AniList: {title_en}...")
+            title_jp = manga["title_jp"]
+            print(f"\nSearching in AniList: {title_jp}...")
 
             # Payload for GraphQL
             variables = {
-                'query': title_en
+                'query': title_jp
             }
 
             anilist_res = requests.post(ANILIST_URL, json={'query': graphql_query, 'variables': variables})

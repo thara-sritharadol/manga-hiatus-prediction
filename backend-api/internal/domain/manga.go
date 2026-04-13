@@ -28,6 +28,7 @@ type MangaMaster struct {
 type PhoenixManga struct {
 	URL         string    `gorm:"primaryKey;type:varchar(255)" json:"url"`
 	TitleTH     string    `gorm:"type:varchar(255);not null" json:"title_th"`
+	TitleJP        string     `gorm:"type:varchar(255)" json:"title_jp"`
 	TitleEN     string    `gorm:"type:varchar(255)" json:"title_en"`
 	VolTH       int       `gorm:"type:int" json:"vol_th"`
 	VolRaw      string    `gorm:"type:varchar(50)" json:"vol_raw"`

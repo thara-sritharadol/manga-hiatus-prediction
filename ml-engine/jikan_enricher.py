@@ -41,6 +41,7 @@ def enrich_with_jikan():
                     
                     manga["genres"] = genre_list
                     manga["authors"] = author_list
+                    manga["title_jp"] = first_result.get("title_japanese", "")
 
                     vols_count = volumes if volumes is not None else 0
                     manga["jp_total_vols"] = vols_count

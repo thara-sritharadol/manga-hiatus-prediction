@@ -24,14 +24,17 @@ def enrich_with_mangaupdates():
         print(f"Found manga to search in MU (Final Step): {len(pending_mangas)} series")
 
         for manga in pending_mangas:
-            title_en = manga["title_en"]
-            print(f"\nSearching in MU: {title_en}...")
+            title_jp = manga["title_jp"]
+            print(f"\nSearching in MU: {title_jp}...")
 
             search_url = "https://api.mangaupdates.com/v1/series/search"
-            search_payload = {"search": title_en}
+            search_payload = {"search": title_jp}
+
+            if not title_jp:
+                manga["jikan_status"] = "UNKNOWN"
             
             mu_res = requests.post(search_url, json=search_payload)
-
+                
             if mu_res.status_code == 200:
                 results = mu_res.json().get("results", [])
 
@@ -49,7 +52,7 @@ def enrich_with_mangaupdates():
                         vol_match = re.search(r'(\d+)\s+Volumes?', mu_status_text, re.IGNORECASE)
                         vols_count = int(vol_match.group(1)) if vol_match else 0
                         
-                        """
+                        
                         if "Complete" in mu_status_text:
                             manga["jikan_status"] = "FINISHED"
                         elif "Ongoing" in mu_status_text:
@@ -58,7 +61,7 @@ def enrich_with_mangaupdates():
                             manga["jikan_status"] = "HIATUS"
                         else:
                             manga["jikan_status"] = "UNKNOWN"
-                        """
+                        
                         manga["jp_total_vols"] = vols_count
 
                         if vols_count > 0:
