@@ -58,3 +58,45 @@ func (r *MangaRepository) ImputeEnglishTitles() (int64, error) {
 	// ส่งกลับจำนวนแถวที่ถูกอัปเดต และ Error (ถ้ามี)
 	return result.RowsAffected, result.Error
 }
+
+// GenerateMLFeatures, manga_ml_features
+func (r *MangaRepository) GenerateMLFeatures() error {
+
+	if err := r.DB.Exec("TRUNCATE TABLE manga_ml_features").Error; err != nil {
+		return err
+	}
+
+	query := `
+		INSERT INTO manga_ml_features (
+			title_th, title_en, latest_release_date, max_vol_th, jp_total_vols, 
+			total_premium_issues, jikan_status, days_since_release, volume_gap, is_dropped, updated_at
+		)
+		SELECT 
+			title_th,
+			MAX(title_en),
+			MAX(th_release_date),
+			MAX(vol_th),
+			MAX(jp_total_vols),
+			SUM(has_premium),
+			MAX(jikan_status),
+			
+			CURRENT_DATE - DATE(MAX(th_release_date)),
+			
+			GREATEST(0, MAX(jp_total_vols) - MAX(vol_th)),
+			
+			CASE 
+				WHEN MAX(jikan_status) IN ('HIATUS', 'CANCELLED') THEN 0
+				WHEN (CURRENT_DATE - DATE(MAX(th_release_date))) > 730 
+					 AND GREATEST(0, MAX(jp_total_vols) - MAX(vol_th)) >= 3 THEN 1
+				ELSE 0
+			END,
+			
+			CURRENT_TIMESTAMP -- updated_at
+		FROM phoenix_mangas
+		WHERE media_type = 'Manga'
+		GROUP BY title_th;
+	`
+	
+	result := r.DB.Exec(query)
+	return result.Error
+}

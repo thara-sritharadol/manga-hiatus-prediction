@@ -44,3 +44,17 @@ type PhoenixManga struct {
 	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
+type MangaMLFeature struct {
+	TitleTH             string     `gorm:"primaryKey;type:varchar(255)" json:"title_th"`
+	TitleEN             string     `gorm:"type:varchar(255)" json:"title_en"`
+	LatestReleaseDate   *time.Time `gorm:"type:date" json:"latest_release_date"`
+	MaxVolTH            int        `gorm:"type:int" json:"max_vol_th"`
+	JPTotalVols         int        `gorm:"type:int" json:"jp_total_vols"`
+	TotalPremiumIssues  int        `gorm:"type:int" json:"total_premium_issues"`
+	JikanStatus         string     `gorm:"type:varchar(50)" json:"jikan_status"`
+	DaysSinceRelease    int        `gorm:"type:int" json:"days_since_release"`
+	VolumeGap           int        `gorm:"type:int" json:"volume_gap"`
+	IsDropped           int        `gorm:"type:int" json:"is_dropped"`
+	UpdatedAt           time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
+}
+
